@@ -1,0 +1,75 @@
+name: Windows (Win10) build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Roaming\cargo\bin
+            ~\AppData\Roaming\cargo\registry
+            ~\AppData\Local\cargo\registry
+            fastdl-app\src-tauri\target
+            fastdl\target
+          key: win-fastdl-${{ hashFiles('fastdl-app/src-tauri/Cargo.lock', 'fastdl/Cargo.lock') }}
+
+      - name: Install tauri-cli
+        run: cargo install tauri-cli --version "^2" --locked
+
+      - name: Engine tests (Windows)
+        working-directory: fastdl
+        run: cargo test --release
+
+      - name: Build engine CLI
+        working-directory: fastdl
+        run: cargo build --release
+
+      - name: Build Tauri app (NSIS installer + exe)
+        working-directory: fastdl-app/src-tauri
+        run: cargo tauri build --target nsis
+
+      - name: Collect artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          # NSIS 安装包
+          Copy-Item (Get-ChildItem .\fastdl-app\src-tauri\target\release\bundle\nsis\*.exe -ErrorAction SilentlyContinue | Select-Object -First 1) dist\FastDL_setup_x86_64.exe -ErrorAction SilentlyContinue
+          # 裸 exe（无需安装直接跑）
+          $exe = Get-ChildItem .\fastdl-app\src-tauri\target\release\*.exe | Where-Object { $_.Name -notmatch '\.pdb$' } | Select-Object -First 1
+          if ($exe) { Copy-Item $exe.FullName dist\FastDL_x86_64.exe }
+          # CLI
+          Copy-Item .\fastdl\target\release\fastdl.exe dist\fastdl_cli_x86_64.exe
+          Get-ChildItem dist | Format-Table Name, Length
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: FastDL-windows-x86_64
+          path: dist/*
+
+      - name: Attach to release（公开下载链接）
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if (gh release view v0.1.0-windows --json tagName 2>$null) {
+            gh release upload v0.1.0-windows dist/FastDL_setup_x86_64.exe dist/FastDL_x86_64.exe dist/fastdl_cli_x86_64.exe --clobber
+          } else {
+            gh release create v0.1.0-windows `
+              --title "Windows x86_64 (Win10+)" `
+              --notes "Win10/11 x64。NSIS 安装包（自动装 WebView2）或免安装 FastDL_x86_64.exe；fastdl_cli 为命令行版引擎。" `
+              dist/FastDL_setup_x86_64.exe dist/FastDL_x86_64.exe dist/fastdl_cli_x86_64.exe
+          }
+          gh release view v0.1.0-windows --json assets -q ".assets[].name"

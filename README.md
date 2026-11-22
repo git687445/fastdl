@@ -27,13 +27,22 @@ fastdl-app/     Tauri 2 macOS GUI 壳（FastDL.app）
 cd fastdl && cargo build --release
 ./target/release/fastdl <url> -o <out> -s 32 -t 8 [-r] [-p] [--verify <sha256>]
 
-# GUI（macOS）
+# GUI — macOS
 cd fastdl-app/src-tauri && cargo tauri build
 # 产物: target/release/bundle/macos/FastDL.app
+
+# GUI — Windows (Win10/11 x64)
+# 在 Windows 上（MSVC + WebView2）：
+cd fastdl-app\src-tauri && cargo tauri build --target nsis
+# 产物: target\release\bundle\nsis\FastDL_*.exe（NSIS 安装包，自动装 WebView2）
+# 或直接跑裸 exe: target\release\fastdl-app.exe
+# GitHub Actions 自动构建见 .github/workflows/windows.yml
+# （main 分支推送后在 Releases 的 v0.1.0-windows 下载）
 ```
 
 ## 说明
 
-- GUI 未签名，本机运行无碍；分发需 codesign + notarize。
+- GUI 未签名，本机运行无碍；分发需 codesign + notarize（macOS）/ 代码签名（Windows，SmartScreen）。
 - 引擎测试：`cd fastdl && cargo test --release`（含全链路 e2e）。
-- GUI 管线测试：`cd fastdl-app/src-tauri && cargo test --test gui_pipeline`。
+- GUI 管线测试：`cd fastdl-app/src-tauri && cargo test --test gui_pipeline`（无头 mock_app）。
+- 平台差异：`reveal`（文件管理器定位）macOS 用 `open -R`，Windows 用 `explorer /select`（manager.rs 内 cfg 分支）。

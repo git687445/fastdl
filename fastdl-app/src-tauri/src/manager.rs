@@ -364,14 +364,24 @@ pub async fn pick_dir(app: AppHandle) -> Result<Option<String>, String> {
     Ok(dir.map(|p| p.to_string()))
 }
 
-/// 在 Finder 中定位输出文件（macOS `open -R`）
+/// 在文件管理器中定位输出文件（macOS `open -R` / Windows `explorer /select`）
 #[tauri::command]
 pub fn reveal(out: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
     std::process::Command::new("open")
         .arg("-R")
         .arg(&out)
         .spawn()
         .map_err(|e| e.to_string())?;
+    #[cfg(target_os = "windows")]
+    std::process::Command::new("explorer")
+        .arg(format!("/select,{}", out))
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        let _ = &out;
+    }
     Ok(())
 }
 
