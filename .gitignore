@@ -1,0 +1,12 @@
+# Rust 构建产物
+target/
+
+# 测试/下载的临时文件
+*.fastdl.state.json
+bench*.bin
+
+# macOS 杂项
+.DS_Store
+
+# Tauri 生成目录
+fastdl-app/src-tauri/gen/

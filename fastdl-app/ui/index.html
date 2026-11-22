@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FastDL · 高速下载器</title>
+  <link rel="icon" href="favicon.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="logo">⬇</span>
+      <h1>FastDL</h1>
+      <span class="tag">多线程分段 · 断点续传 · SHA-256</span>
+    </div>
+  </header>
+
+  <section class="add-row">
+    <input id="url" type="text" placeholder="https://example.com/big-file.iso" spellcheck="false" />
+    <div class="opts">
+      <label>段 <input id="segs" type="number" value="32" min="1" max="256" /></label>
+      <label>线程 <input id="threads" type="number" value="8" min="1" max="64" /></label>
+      <div class="dir">
+        <span id="dirLabel">~/Downloads</span>
+        <button id="pickDir" class="ghost">选目录</button>
+      </div>
+      <button id="start" class="primary">开始下载</button>
+    </div>
+  </section>
+
+  <main id="tasks"></main>
+
+  <footer>
+    <span>fastdl engine · TDM Fast 同款分段引擎</span>
+    <span>不支持 Range 的服务器自动退化为单流</span>
+  </footer>
+
+  <script>
+  // 启动诊断 + 全局错误横幅：让任何 JS/IPC 失败在界面上可见（WKWebView 会吞 alert()）
+  (function () {
+    var bannerEl = null;
+    var hideTimer = null;
+    function ensureBanner() {
+      if (bannerEl) return bannerEl;
+      bannerEl = document.createElement("div");
+      bannerEl.id = "fastdlBanner";
+      bannerEl.style.cssText =
+        "display:none;position:fixed;top:10px;left:10px;right:10px;margin:0 auto;max-width:720px;" +
+        "background:#3a1d1d;color:#ffb8b8;border:1px solid #844;padding:10px 14px;border-radius:10px;" +
+        "font:13px/1.5 -apple-system,system-ui;z-index:999;white-space:pre-wrap";
+      document.body.appendChild(bannerEl);
+      return bannerEl;
+    }
+    window.showFastdlBanner = function (msg, sticky) {
+      var el = ensureBanner();
+      el.textContent = msg;
+      el.style.display = "block";
+      if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+      if (!sticky) hideTimer = setTimeout(function () { el.style.display = "none"; }, 4000);
+    };
+    window.addEventListener("error", function (e) {
+      window.showFastdlBanner("JS 错误: " + e.message + "（" + (e.filename || "") + ":" + e.lineno + "）", true);
+    });
+    window.addEventListener("unhandledrejection", function (e) {
+      window.showFastdlBanner("Promise 未捕获: " + (e.reason && e.reason.message ? e.reason.message : e.reason), true);
+    });
+    setTimeout(function () {
+      if (!window.__FASTDL_BOOTED) {
+        window.showFastdlBanner(
+          "前端脚本未启动。诊断：window.__TAURI__ = " + (typeof window.__TAURI__) +
+          "，__TAURI__.core = " + (window.__TAURI__ ? typeof window.__TAURI__.core : "n/a"), true);
+      }
+    }, 2500);
+  })();
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>
